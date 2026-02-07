@@ -373,6 +373,57 @@
 
         document.body.appendChild(popup);
 
+        // Position management - save as percentage ratio from edges
+        const POSITION_KEY = 'adobeAutoPopupPosition';
+
+        // Load saved position
+        const loadPosition = () => {
+            try {
+                const saved = localStorage.getItem(POSITION_KEY);
+                if (saved) {
+                    const { xRatio, yRatio } = JSON.parse(saved);
+                    applyPositionFromRatio(xRatio, yRatio);
+                }
+            } catch (e) {
+                console.log('[Adobe Auto] Could not load position:', e);
+            }
+        };
+
+        // Apply position from percentage ratio
+        const applyPositionFromRatio = (xRatio, yRatio) => {
+            const maxX = window.innerWidth - popup.offsetWidth;
+            const maxY = window.innerHeight - popup.offsetHeight;
+
+            const x = Math.max(0, Math.min(maxX, xRatio * window.innerWidth));
+            const y = Math.max(0, Math.min(maxY, yRatio * window.innerHeight));
+
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            popup.style.right = 'auto';
+        };
+
+        // Save current position as ratio
+        const savePositionAsRatio = () => {
+            const x = popup.offsetLeft;
+            const y = popup.offsetTop;
+
+            const xRatio = x / window.innerWidth;
+            const yRatio = y / window.innerHeight;
+
+            localStorage.setItem(POSITION_KEY, JSON.stringify({ xRatio, yRatio }));
+        };
+
+        // Handle window resize - maintain ratio position
+        window.addEventListener('resize', () => {
+            try {
+                const saved = localStorage.getItem(POSITION_KEY);
+                if (saved) {
+                    const { xRatio, yRatio } = JSON.parse(saved);
+                    applyPositionFromRatio(xRatio, yRatio);
+                }
+            } catch (e) { }
+        });
+
         // Make draggable
         let isDragging = false;
         let offsetX, offsetY;
@@ -393,9 +444,16 @@
         });
 
         document.addEventListener('mouseup', () => {
-            isDragging = false;
-            popup.style.cursor = 'grab';
+            if (isDragging) {
+                isDragging = false;
+                popup.style.cursor = 'grab';
+                // Save position when drag ends
+                savePositionAsRatio();
+            }
         });
+
+        // Load position after popup is added to DOM
+        setTimeout(loadPosition, 50);
 
         // Event handlers
         popup.querySelector('.auto-close').addEventListener('click', () => {

@@ -59,32 +59,66 @@
         throw new Error(`Element not found: ${selector}`);
     };
 
-    // Simulate human-like typing
-    const typeText = async (element, text) => {
-        element.focus();
-        element.value = '';
+    // Simulate human-like typing with verification
+    const typeText = async (element, text, maxRetries = 3) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            element.focus();
+            element.value = '';
 
-        // Dispatch focus event
-        element.dispatchEvent(new Event('focus', { bubbles: true }));
+            // Dispatch focus event
+            element.dispatchEvent(new Event('focus', { bubbles: true }));
 
-        for (const char of text) {
-            element.value += char;
-            element.dispatchEvent(new Event('input', { bubbles: true }));
-            await delay(Math.floor(Math.random() * 50) + 20);
+            for (const char of text) {
+                element.value += char;
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+                await delay(Math.floor(Math.random() * 50) + 20);
+            }
+
+            // Dispatch change and blur
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+            element.dispatchEvent(new Event('blur', { bubbles: true }));
+
+            // Verify the value was set
+            await delay(100);
+            if (element.value === text) {
+                return true; // Success
+            }
+
+            console.log(`[Adobe Auto] Attempt ${attempt}: Value mismatch. Expected "${text}", got "${element.value}"`);
+
+            if (attempt < maxRetries) {
+                await delay(300);
+            }
         }
 
-        // Dispatch change and blur
-        element.dispatchEvent(new Event('change', { bubbles: true }));
-        element.dispatchEvent(new Event('blur', { bubbles: true }));
+        // Final check
+        return element.value === text;
     };
 
-    // Set input value (faster, for non-sensitive fields)
-    const setInputValue = (element, value) => {
-        element.focus();
-        element.value = value;
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-        element.dispatchEvent(new Event('change', { bubbles: true }));
-        element.dispatchEvent(new Event('blur', { bubbles: true }));
+    // Set input value with verification (faster, for non-sensitive fields)
+    const setInputValue = async (element, value, maxRetries = 3) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            element.focus();
+            element.value = value;
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+            element.dispatchEvent(new Event('blur', { bubbles: true }));
+
+            // Verify the value was set
+            await delay(100);
+            if (element.value === value) {
+                return true; // Success
+            }
+
+            console.log(`[Adobe Auto] Attempt ${attempt}: Value mismatch. Expected "${value}", got "${element.value}"`);
+
+            if (attempt < maxRetries) {
+                await delay(300);
+            }
+        }
+
+        // Final check
+        return element.value === value;
     };
 
     // Click element with human-like behavior
@@ -131,8 +165,13 @@
             const emailInput = await waitForElement(SELECTORS.emailInput);
             updateStatus(1, 'Filling email...');
 
-            await typeText(emailInput, email);
+            const success = await typeText(emailInput, email);
             await randomDelay();
+
+            if (!success) {
+                updateStatus(1, 'Failed to fill email - value not set', true);
+                return false;
+            }
 
             updateStatus(1, 'Email filled ✓');
             return true;
@@ -164,6 +203,8 @@
     // Step 3: Fill Payment Info
     const stepFillPayment = async (cardData, formData) => {
         updateStatus(3, 'Waiting for payment form...');
+        let allFieldsFilled = true;
+        const failedFields = [];
 
         try {
             // Wait for payment panel to be active
@@ -175,7 +216,11 @@
                 updateStatus(3, 'Filling card number...');
                 const cardInput = document.querySelector(SELECTORS.cardNumberInput);
                 if (cardInput) {
-                    await typeText(cardInput, cardData.cardNumber);
+                    const success = await typeText(cardInput, cardData.cardNumber);
+                    if (!success) {
+                        failedFields.push('Card number');
+                        allFieldsFilled = false;
+                    }
                     await randomDelay();
                 } else {
                     // Card is in iframe - try to access
@@ -183,37 +228,58 @@
                     if (iframe && iframe.contentDocument) {
                         const iframeCardInput = iframe.contentDocument.querySelector(SELECTORS.cardNumberInput);
                         if (iframeCardInput) {
-                            await typeText(iframeCardInput, cardData.cardNumber);
+                            const success = await typeText(iframeCardInput, cardData.cardNumber);
+                            if (!success) {
+                                failedFields.push('Card number (iframe)');
+                                allFieldsFilled = false;
+                            }
                         }
                     } else {
-                        updateStatus(3, 'Card field in iframe (manual input needed)');
+                        updateStatus(3, 'Card in iframe - copy: ' + cardData.cardNumber);
                         console.log('[Adobe Auto] Card number needs manual input:', cardData.cardNumber);
+                        failedFields.push('Card number (iframe blocked)');
+                        allFieldsFilled = false;
                     }
                 }
             } catch (e) {
                 console.log('[Adobe Auto] Card iframe access blocked:', e);
+                failedFields.push('Card number');
+                allFieldsFilled = false;
             }
 
             // Fill expiry
             updateStatus(3, 'Filling expiry date...');
             const expiryInput = await waitForElement(SELECTORS.expiryInput, 5000).catch(() => null);
             if (expiryInput) {
-                await typeText(expiryInput, cardData.formatted.expiry);
+                const success = await typeText(expiryInput, cardData.formatted.expiry);
+                if (!success) {
+                    failedFields.push('Expiry');
+                    allFieldsFilled = false;
+                }
                 await randomDelay();
             }
 
             // Fill first name
-            updateStatus(3, 'Filling name...');
+            updateStatus(3, 'Filling first name...');
             const firstNameInput = await waitForElement(SELECTORS.firstNameInput, 5000).catch(() => null);
             if (firstNameInput) {
-                setInputValue(firstNameInput, formData.firstName);
+                const success = await setInputValue(firstNameInput, formData.firstName);
+                if (!success) {
+                    failedFields.push('First name');
+                    allFieldsFilled = false;
+                }
                 await randomDelay(100, 300);
             }
 
             // Fill last name
+            updateStatus(3, 'Filling last name...');
             const lastNameInput = await waitForElement(SELECTORS.lastNameInput, 5000).catch(() => null);
             if (lastNameInput) {
-                setInputValue(lastNameInput, formData.lastName);
+                const success = await setInputValue(lastNameInput, formData.lastName);
+                if (!success) {
+                    failedFields.push('Last name');
+                    allFieldsFilled = false;
+                }
                 await randomDelay(100, 300);
             }
 
@@ -221,8 +287,17 @@
             updateStatus(3, 'Filling postal code...');
             const postalInput = await waitForElement(SELECTORS.postalCodeInput, 5000).catch(() => null);
             if (postalInput) {
-                setInputValue(postalInput, formData.postalCode);
+                const success = await setInputValue(postalInput, formData.postalCode);
+                if (!success) {
+                    failedFields.push('Postal code');
+                    allFieldsFilled = false;
+                }
                 await randomDelay();
+            }
+
+            if (!allFieldsFilled) {
+                updateStatus(3, `Failed: ${failedFields.join(', ')}`, true);
+                return false;
             }
 
             updateStatus(3, 'Payment info filled ✓');

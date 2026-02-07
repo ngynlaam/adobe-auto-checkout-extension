@@ -129,12 +129,20 @@
             await delay(Math.floor(Math.random() * 50) + 20);
         }
 
-        // Dispatch change and blur
+        // Dispatch change
         element.dispatchEvent(new Event('change', { bubbles: true }));
-        element.dispatchEvent(new Event('blur', { bubbles: true }));
 
-        // Wait for React to process
-        await delay(200);
+        // Click outside to trigger real blur/validation (Adobe needs this)
+        const outsideElement = document.body;
+        outsideElement.click();
+        element.blur();
+
+        // Also dispatch blur event for React
+        element.dispatchEvent(new Event('blur', { bubbles: true }));
+        element.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+
+        // Wait for validation
+        await delay(300);
 
         // Log result
         console.log(`[Adobe Auto] Typed: "${text}" | Current value: "${element.value}"`);

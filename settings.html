@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adobe Auto Checkout - Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🚀</span>
+        <h1>Adobe Auto Checkout</h1>
+      </div>
+      <p class="subtitle">Configure your automation settings</p>
+    </header>
+
+    <main class="main">
+      <!-- BIN Settings -->
+      <section class="card">
+        <div class="card-header">
+          <h2>💳 BIN Settings</h2>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label for="bin">BIN Pattern</label>
+            <input type="text" id="bin" placeholder="453789xxxxxxxxxx" maxlength="20">
+            <small>Use 'x' for random digits. Example: 453789xxxxxxxxxx</small>
+          </div>
+          <div class="form-group">
+            <label>Preview Generated Card</label>
+            <div class="preview-card">
+              <span id="previewCard">Click "Generate Preview" to see</span>
+              <button type="button" id="generatePreview" class="btn btn-secondary btn-sm">Generate Preview</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Email List -->
+      <section class="card">
+        <div class="card-header">
+          <h2>📧 Email List</h2>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label for="emailList">Emails (one per line)</label>
+            <textarea id="emailList" rows="6" placeholder="email1@example.com&#10;email2@example.com&#10;email3@example.com"></textarea>
+            <small id="emailCount">0 emails configured</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- Form Data -->
+      <section class="card">
+        <div class="card-header">
+          <h2>👤 Form Data</h2>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firstName">First Name</label>
+              <input type="text" id="firstName" placeholder="John">
+            </div>
+            <div class="form-group">
+              <label for="lastName">Last Name</label>
+              <input type="text" id="lastName" placeholder="Smith">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="postalCode">Postal Code</label>
+            <input type="text" id="postalCode" placeholder="SW1A 1AA">
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Log -->
+      <section class="card">
+        <div class="card-header">
+          <h2>📊 Results Log</h2>
+          <button type="button" id="clearResults" class="btn btn-danger btn-sm">Clear All</button>
+        </div>
+        <div class="card-body">
+          <div id="resultsContainer" class="results-container">
+            <p class="no-results">No results yet</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-actions">
+        <button type="button" id="exportSettings" class="btn btn-secondary">
+          📥 Export Settings
+        </button>
+        <button type="button" id="importSettings" class="btn btn-secondary">
+          📤 Import Settings
+        </button>
+        <input type="file" id="importFile" accept=".json" hidden>
+      </div>
+      <button type="button" id="saveSettings" class="btn btn-primary btn-lg">
+        💾 Save Settings
+      </button>
+      <p class="save-status" id="saveStatus"></p>
+    </footer>
+  </div>
+
+  <script src="lib/cc-generator.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

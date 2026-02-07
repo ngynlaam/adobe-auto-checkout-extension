@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adobe Auto Checkout</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <div class="popup">
+        <div class="popup-header">
+            <span class="popup-title">🚀 Adobe Auto</span>
+        </div>
+
+        <div class="popup-body">
+            <div class="status-section">
+                <div class="status-label">Status</div>
+                <div class="status-value" id="status">Ready</div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-label">Current Step</div>
+                <div class="status-value" id="step">-</div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-label">Email</div>
+                <div class="status-value email" id="email">-</div>
+            </div>
+        </div>
+
+        <div class="popup-actions">
+            <button id="startBtn" class="btn btn-start">▶ Start</button>
+            <button id="settingsBtn" class="btn btn-settings">⚙</button>
+        </div>
+
+        <div class="popup-footer">
+            <small>Click Start when on Adobe checkout page</small>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

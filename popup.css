@@ -1,4 +1,6 @@
-/* Adobe Auto Checkout - Popup Styles */
+/* Adobe Auto Checkout - Popup Styles (Google Material Design) */
+
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&family=Roboto:wght@400;500&display=swap');
 
 * {
     margin: 0;
@@ -7,9 +9,9 @@
 }
 
 body {
-    width: 280px;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    width: 260px;
+    font-family: 'Google Sans', 'Roboto', -apple-system, sans-serif;
+    background: #2d2d2d;
 }
 
 .popup {
@@ -17,16 +19,23 @@ body {
 }
 
 .popup-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 14px 16px;
-    background: rgba(255, 255, 255, 0.05);
+    background: #282828;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.popup-header .material-symbols-outlined {
+    font-size: 20px;
+    color: #8ab4f8;
+}
+
 .popup-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #fff;
-    letter-spacing: 0.5px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #e3e3e3;
 }
 
 .popup-body {
@@ -34,7 +43,7 @@ body {
 }
 
 .status-section {
-    margin-bottom: 14px;
+    margin-bottom: 12px;
 }
 
 .status-section:last-child {
@@ -44,20 +53,20 @@ body {
 .status-label {
     font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #666;
+    letter-spacing: 0.5px;
+    color: #5f6368;
     margin-bottom: 4px;
 }
 
 .status-value {
-    font-size: 14px;
-    color: #00ff88;
+    font-size: 13px;
+    color: #81c995;
     font-weight: 500;
 }
 
 .status-value.email {
     font-size: 12px;
-    color: #888;
+    color: #9aa0a6;
     word-break: break-all;
 }
 
@@ -65,44 +74,56 @@ body {
     display: flex;
     gap: 8px;
     padding: 12px 16px;
-    background: rgba(0, 0, 0, 0.2);
+    background: #1f1f1f;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: none;
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
+    font-family: 'Google Sans', 'Roboto', sans-serif;
     font-size: 13px;
-    font-weight: 600;
-    transition: transform 0.2s, box-shadow 0.2s;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.btn .material-symbols-outlined {
+    font-size: 18px;
 }
 
 .btn-start {
     flex: 1;
     padding: 10px 16px;
-    background: linear-gradient(135deg, #00d4aa 0%, #00b894 100%);
-    color: #fff;
+    background: #8ab4f8;
+    color: #1f1f1f;
 }
 
 .btn-start:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 212, 170, 0.4);
+    background: #aecbfa;
 }
 
 .btn-start.running {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+    background: #f28b82;
+}
+
+.btn-start.running:hover {
+    background: #f6aea9;
 }
 
 .btn-settings {
-    padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.1);
-    color: #888;
-    font-size: 16px;
+    padding: 10px 12px;
+    background: #3c3c3c;
+    color: #9aa0a6;
 }
 
 .btn-settings:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
+    background: #4a4a4a;
+    color: #e3e3e3;
 }
 
 .popup-footer {
@@ -113,5 +134,5 @@ body {
 
 .popup-footer small {
     font-size: 11px;
-    color: #555;
+    color: #5f6368;
 }

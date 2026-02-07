@@ -269,7 +269,6 @@
     // Step 3: Fill Payment Info
     const stepFillPayment = async (cardData, formData) => {
         updateStatus(3, 'Waiting for payment form...');
-        let iframeFieldsBlocked = false;
 
         try {
             // Wait for payment panel to be active
@@ -281,28 +280,89 @@
             const expiryInput = document.querySelector(SELECTORS.expiryInput);
 
             if (!cardInput || !expiryInput) {
-                // Card fields are in iframe - copy to clipboard instead
-                iframeFieldsBlocked = true;
+                // Card fields are in iframe - use debugger API
+                updateStatus(3, 'Using debugger for iframe fields...');
 
-                const cardInfo = `${cardData.cardNumber}`;
-                const expiryInfo = cardData.formatted.expiry;
+                // Common selectors for payment iframes (Stripe, Adyen, etc.)
+                const cardSelectors = [
+                    'input[name="cardnumber"]',
+                    'input[name="card-number"]',
+                    'input[autocomplete="cc-number"]',
+                    'input[data-elements-stable-field-name="cardNumber"]',
+                    'input[placeholder*="card number" i]',
+                    'input[aria-label*="card number" i]'
+                ];
 
-                // Copy card number to clipboard
-                try {
-                    await navigator.clipboard.writeText(cardInfo);
-                    updateStatus(3, `Card copied! Paste: ${cardInfo.slice(-8)}... | Exp: ${expiryInfo}`);
-                    console.log('[Adobe Auto] Card copied to clipboard:', cardInfo);
-                    console.log('[Adobe Auto] Expiry:', expiryInfo);
-                } catch (clipErr) {
-                    console.log('[Adobe Auto] Clipboard error:', clipErr);
+                const expirySelectors = [
+                    'input[name="exp-date"]',
+                    'input[name="expiry"]',
+                    'input[autocomplete="cc-exp"]',
+                    'input[data-elements-stable-field-name="cardExpiry"]',
+                    'input[placeholder*="MM" i]',
+                    'input[aria-label*="expir" i]'
+                ];
+
+                // Try to fill card number via debugger
+                let cardFilled = false;
+                for (const selector of cardSelectors) {
+                    try {
+                        updateStatus(3, 'Filling card via debugger...');
+                        const result = await new Promise((resolve) => {
+                            chrome.runtime.sendMessage({
+                                type: 'FILL_IFRAME_FIELD',
+                                selector: selector,
+                                value: cardData.cardNumber
+                            }, resolve);
+                        });
+
+                        if (result && result.success) {
+                            console.log('[Adobe Auto] Card filled via debugger:', result);
+                            cardFilled = true;
+                            break;
+                        }
+                    } catch (err) {
+                        console.log('[Adobe Auto] Debugger attempt failed:', err);
+                    }
                 }
 
-                // Show card info in floating popup prominently
-                showCardInfoOverlay(cardData);
+                await delay(500);
+
+                // Try to fill expiry via debugger
+                let expiryFilled = false;
+                for (const selector of expirySelectors) {
+                    try {
+                        updateStatus(3, 'Filling expiry via debugger...');
+                        const result = await new Promise((resolve) => {
+                            chrome.runtime.sendMessage({
+                                type: 'FILL_IFRAME_FIELD',
+                                selector: selector,
+                                value: cardData.formatted.expiry
+                            }, resolve);
+                        });
+
+                        if (result && result.success) {
+                            console.log('[Adobe Auto] Expiry filled via debugger:', result);
+                            expiryFilled = true;
+                            break;
+                        }
+                    } catch (err) {
+                        console.log('[Adobe Auto] Debugger attempt failed:', err);
+                    }
+                }
+
+                // If debugger failed, fall back to clipboard
+                if (!cardFilled || !expiryFilled) {
+                    updateStatus(3, 'Debugger failed - showing card info...');
+                    showCardInfoOverlay(cardData);
+
+                    try {
+                        await navigator.clipboard.writeText(cardData.cardNumber);
+                    } catch (e) { }
+                }
 
                 await delay(500);
             } else {
-                // Card fields accessible - fill them
+                // Card fields accessible - fill them directly
                 updateStatus(3, 'Filling card number...');
                 await typeText(cardInput, cardData.cardNumber);
                 await randomDelay();
@@ -334,11 +394,6 @@
             if (postalInput) {
                 await setInputValue(postalInput, formData.postalCode);
                 await randomDelay();
-            }
-
-            if (iframeFieldsBlocked) {
-                updateStatus(3, `Paste card: ${cardData.cardNumber} | ${cardData.formatted.expiry}`);
-                return 'partial'; // Indicate partial success
             }
 
             updateStatus(3, 'Payment info filled ✓');

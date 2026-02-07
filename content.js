@@ -177,47 +177,58 @@
         }
     };
 
-    // Step 2: Click Continue
+    // Step 2: Click Continue - Wait for validation using MutationObserver
     const stepClickContinue = async () => {
         updateStatus(2, 'Waiting for email validation...');
 
         try {
             const continueBtn = await waitForElement(SELECTORS.continueButton);
 
-            // Wait for button to be enabled (Adobe validates email first)
-            let attempts = 0;
-            const maxAttempts = 30; // 15 seconds max
+            // Check if already enabled
+            const isButtonEnabled = () => {
+                return !continueBtn.disabled &&
+                    continueBtn.getAttribute('aria-disabled') !== 'true' &&
+                    !continueBtn.classList.contains('disabled');
+            };
 
-            while (attempts < maxAttempts) {
-                const isDisabled = continueBtn.disabled ||
-                    continueBtn.getAttribute('aria-disabled') === 'true' ||
-                    continueBtn.classList.contains('disabled');
+            if (isButtonEnabled()) {
+                updateStatus(2, 'Email validated ✓ - Clicking Continue...');
+            } else {
+                // Use MutationObserver for instant detection
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        observer.disconnect();
+                        reject(new Error('Timeout waiting for email validation'));
+                    }, 10000); // 10 second timeout
 
-                if (!isDisabled) {
-                    // Additional check: look for validation checkmark on email
-                    const emailContainer = document.querySelector('[data-testid="email-input"]')?.closest('.CheckoutWizardStep__verify__wrapper');
-                    const hasCheckmark = emailContainer?.querySelector('svg[class*="checkmark"]') ||
-                        document.querySelector('[data-testid="email-step-verified"]') ||
-                        !document.querySelector('[data-testid="email-input"][aria-invalid="true"]');
+                    const observer = new MutationObserver((mutations) => {
+                        if (isButtonEnabled()) {
+                            observer.disconnect();
+                            clearTimeout(timeout);
+                            updateStatus(2, 'Email validated ✓ - Clicking Continue...');
+                            resolve();
+                        }
+                    });
 
-                    if (hasCheckmark !== false) {
-                        updateStatus(2, 'Email validated ✓ - Clicking Continue...');
-                        break;
+                    // Watch the button for attribute/class changes
+                    observer.observe(continueBtn, {
+                        attributes: true,
+                        attributeFilter: ['disabled', 'aria-disabled', 'class']
+                    });
+
+                    // Also watch parent for any changes (in case button is replaced)
+                    if (continueBtn.parentElement) {
+                        observer.observe(continueBtn.parentElement, {
+                            childList: true,
+                            subtree: true,
+                            attributes: true
+                        });
                     }
-                }
-
-                attempts++;
-                updateStatus(2, `Waiting for validation... (${attempts}/${maxAttempts})`);
-                await delay(500);
-            }
-
-            if (attempts >= maxAttempts) {
-                updateStatus(2, 'Timeout waiting for email validation', true);
-                return false;
+                });
             }
 
             // Small delay before clicking
-            await delay(300);
+            await delay(200);
 
             await clickElement(continueBtn);
             await delay(2000); // Wait for page transition

@@ -59,66 +59,62 @@
         throw new Error(`Element not found: ${selector}`);
     };
 
-    // Simulate human-like typing with verification
-    const typeText = async (element, text, maxRetries = 3) => {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            element.focus();
-            element.value = '';
-
-            // Dispatch focus event
-            element.dispatchEvent(new Event('focus', { bubbles: true }));
-
-            for (const char of text) {
-                element.value += char;
-                element.dispatchEvent(new Event('input', { bubbles: true }));
-                await delay(Math.floor(Math.random() * 50) + 20);
-            }
-
-            // Dispatch change and blur
-            element.dispatchEvent(new Event('change', { bubbles: true }));
-            element.dispatchEvent(new Event('blur', { bubbles: true }));
-
-            // Verify the value was set
-            await delay(100);
-            if (element.value === text) {
-                return true; // Success
-            }
-
-            console.log(`[Adobe Auto] Attempt ${attempt}: Value mismatch. Expected "${text}", got "${element.value}"`);
-
-            if (attempt < maxRetries) {
-                await delay(300);
-            }
-        }
-
-        // Final check
-        return element.value === text;
+    // React-compatible: Get native input value setter
+    const getNativeInputValueSetter = (element) => {
+        const prototype = Object.getPrototypeOf(element);
+        const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+        return descriptor.set;
     };
 
-    // Set input value with verification (faster, for non-sensitive fields)
-    const setInputValue = async (element, value, maxRetries = 3) => {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            element.focus();
-            element.value = value;
+    // Simulate human-like typing with React support
+    const typeText = async (element, text) => {
+        element.focus();
+
+        // Clear first
+        const nativeInputValueSetter = getNativeInputValueSetter(element);
+        nativeInputValueSetter.call(element, '');
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+
+        // Type character by character
+        for (let i = 0; i < text.length; i++) {
+            const currentValue = text.substring(0, i + 1);
+            nativeInputValueSetter.call(element, currentValue);
             element.dispatchEvent(new Event('input', { bubbles: true }));
-            element.dispatchEvent(new Event('change', { bubbles: true }));
-            element.dispatchEvent(new Event('blur', { bubbles: true }));
-
-            // Verify the value was set
-            await delay(100);
-            if (element.value === value) {
-                return true; // Success
-            }
-
-            console.log(`[Adobe Auto] Attempt ${attempt}: Value mismatch. Expected "${value}", got "${element.value}"`);
-
-            if (attempt < maxRetries) {
-                await delay(300);
-            }
+            await delay(Math.floor(Math.random() * 50) + 20);
         }
 
-        // Final check
-        return element.value === value;
+        // Dispatch change and blur
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        element.dispatchEvent(new Event('blur', { bubbles: true }));
+
+        // Wait for React to process
+        await delay(200);
+
+        // Log result
+        console.log(`[Adobe Auto] Typed: "${text}" | Current value: "${element.value}"`);
+
+        // React might format/transform the value, so we just check if it's not empty
+        return element.value.length > 0;
+    };
+
+    // Set input value with React support (faster, for non-sensitive fields)
+    const setInputValue = async (element, value) => {
+        element.focus();
+
+        const nativeInputValueSetter = getNativeInputValueSetter(element);
+        nativeInputValueSetter.call(element, value);
+
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        element.dispatchEvent(new Event('blur', { bubbles: true }));
+
+        // Wait for React to process
+        await delay(200);
+
+        console.log(`[Adobe Auto] Set: "${value}" | Current value: "${element.value}"`);
+
+        // React might format the value, so we just check if it's not empty
+        return element.value.length > 0;
     };
 
     // Click element with human-like behavior

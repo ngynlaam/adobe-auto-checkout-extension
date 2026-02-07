@@ -44,19 +44,65 @@
         return delay(Math.floor(Math.random() * (max - min + 1)) + min);
     };
 
-    // Wait for element to appear
-    const waitForElement = async (selector, timeout = 10000) => {
-        const startTime = Date.now();
-
-        while (Date.now() - startTime < timeout) {
-            const element = document.querySelector(selector);
-            if (element && element.offsetParent !== null) {
-                return element;
+    // Wait for element using MutationObserver (instant detection)
+    const waitForElement = (selector, timeout = 10000) => {
+        return new Promise((resolve, reject) => {
+            // Check if already exists
+            const existing = document.querySelector(selector);
+            if (existing && existing.offsetParent !== null) {
+                return resolve(existing);
             }
-            await delay(200);
-        }
 
-        throw new Error(`Element not found: ${selector}`);
+            const timeoutId = setTimeout(() => {
+                observer.disconnect();
+                reject(new Error(`Element not found: ${selector}`));
+            }, timeout);
+
+            const observer = new MutationObserver(() => {
+                const element = document.querySelector(selector);
+                if (element && element.offsetParent !== null) {
+                    observer.disconnect();
+                    clearTimeout(timeoutId);
+                    resolve(element);
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true
+            });
+        });
+    };
+
+    // Wait for condition using MutationObserver
+    const waitForCondition = (conditionFn, targetElement = document.body, timeout = 10000) => {
+        return new Promise((resolve, reject) => {
+            // Check if condition already met
+            if (conditionFn()) {
+                return resolve(true);
+            }
+
+            const timeoutId = setTimeout(() => {
+                observer.disconnect();
+                reject(new Error('Timeout waiting for condition'));
+            }, timeout);
+
+            const observer = new MutationObserver(() => {
+                if (conditionFn()) {
+                    observer.disconnect();
+                    clearTimeout(timeoutId);
+                    resolve(true);
+                }
+            });
+
+            observer.observe(targetElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                characterData: true
+            });
+        });
     };
 
     // React-compatible: Get native input value setter
@@ -184,53 +230,24 @@
         try {
             const continueBtn = await waitForElement(SELECTORS.continueButton);
 
-            // Check if already enabled
+            // Check if button is enabled
             const isButtonEnabled = () => {
-                return !continueBtn.disabled &&
-                    continueBtn.getAttribute('aria-disabled') !== 'true' &&
-                    !continueBtn.classList.contains('disabled');
+                const btn = document.querySelector(SELECTORS.continueButton);
+                return btn && !btn.disabled &&
+                    btn.getAttribute('aria-disabled') !== 'true' &&
+                    !btn.classList.contains('disabled');
             };
 
-            if (isButtonEnabled()) {
-                updateStatus(2, 'Email validated ✓ - Clicking Continue...');
-            } else {
-                // Use MutationObserver for instant detection
-                await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        observer.disconnect();
-                        reject(new Error('Timeout waiting for email validation'));
-                    }, 10000); // 10 second timeout
-
-                    const observer = new MutationObserver((mutations) => {
-                        if (isButtonEnabled()) {
-                            observer.disconnect();
-                            clearTimeout(timeout);
-                            updateStatus(2, 'Email validated ✓ - Clicking Continue...');
-                            resolve();
-                        }
-                    });
-
-                    // Watch the button for attribute/class changes
-                    observer.observe(continueBtn, {
-                        attributes: true,
-                        attributeFilter: ['disabled', 'aria-disabled', 'class']
-                    });
-
-                    // Also watch parent for any changes (in case button is replaced)
-                    if (continueBtn.parentElement) {
-                        observer.observe(continueBtn.parentElement, {
-                            childList: true,
-                            subtree: true,
-                            attributes: true
-                        });
-                    }
-                });
-            }
+            // Wait for button to be enabled (instant detection)
+            await waitForCondition(isButtonEnabled, continueBtn.parentElement || document.body, 10000);
+            updateStatus(2, 'Email validated ✓ - Clicking Continue...');
 
             // Small delay before clicking
             await delay(200);
 
-            await clickElement(continueBtn);
+            // Re-get button in case it was replaced
+            const btn = document.querySelector(SELECTORS.continueButton);
+            await clickElement(btn || continueBtn);
             await delay(2000); // Wait for page transition
 
             updateStatus(2, 'Continue clicked ✓');

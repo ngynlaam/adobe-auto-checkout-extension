@@ -179,11 +179,45 @@
 
     // Step 2: Click Continue
     const stepClickContinue = async () => {
-        updateStatus(2, 'Finding Continue button...');
+        updateStatus(2, 'Waiting for email validation...');
 
         try {
             const continueBtn = await waitForElement(SELECTORS.continueButton);
-            updateStatus(2, 'Clicking Continue...');
+
+            // Wait for button to be enabled (Adobe validates email first)
+            let attempts = 0;
+            const maxAttempts = 30; // 15 seconds max
+
+            while (attempts < maxAttempts) {
+                const isDisabled = continueBtn.disabled ||
+                    continueBtn.getAttribute('aria-disabled') === 'true' ||
+                    continueBtn.classList.contains('disabled');
+
+                if (!isDisabled) {
+                    // Additional check: look for validation checkmark on email
+                    const emailContainer = document.querySelector('[data-testid="email-input"]')?.closest('.CheckoutWizardStep__verify__wrapper');
+                    const hasCheckmark = emailContainer?.querySelector('svg[class*="checkmark"]') ||
+                        document.querySelector('[data-testid="email-step-verified"]') ||
+                        !document.querySelector('[data-testid="email-input"][aria-invalid="true"]');
+
+                    if (hasCheckmark !== false) {
+                        updateStatus(2, 'Email validated ✓ - Clicking Continue...');
+                        break;
+                    }
+                }
+
+                attempts++;
+                updateStatus(2, `Waiting for validation... (${attempts}/${maxAttempts})`);
+                await delay(500);
+            }
+
+            if (attempts >= maxAttempts) {
+                updateStatus(2, 'Timeout waiting for email validation', true);
+                return false;
+            }
+
+            // Small delay before clicking
+            await delay(300);
 
             await clickElement(continueBtn);
             await delay(2000); // Wait for page transition

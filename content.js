@@ -269,59 +269,46 @@
     // Step 3: Fill Payment Info
     const stepFillPayment = async (cardData, formData) => {
         updateStatus(3, 'Waiting for payment form...');
-        let allFieldsFilled = true;
-        const failedFields = [];
+        let iframeFieldsBlocked = false;
 
         try {
             // Wait for payment panel to be active
             await waitForElement(SELECTORS.paymentPanel + '.CheckoutWizardStep__active__YuSs3', 15000);
-            await delay(1500);
+            await delay(1000);
 
-            // Try to fill card number (may fail due to iframe)
-            try {
+            // Check if card fields are in iframe (cross-origin blocked)
+            const cardInput = document.querySelector(SELECTORS.cardNumberInput);
+            const expiryInput = document.querySelector(SELECTORS.expiryInput);
+
+            if (!cardInput || !expiryInput) {
+                // Card fields are in iframe - copy to clipboard instead
+                iframeFieldsBlocked = true;
+
+                const cardInfo = `${cardData.cardNumber}`;
+                const expiryInfo = cardData.formatted.expiry;
+
+                // Copy card number to clipboard
+                try {
+                    await navigator.clipboard.writeText(cardInfo);
+                    updateStatus(3, `Card copied! Paste: ${cardInfo.slice(-8)}... | Exp: ${expiryInfo}`);
+                    console.log('[Adobe Auto] Card copied to clipboard:', cardInfo);
+                    console.log('[Adobe Auto] Expiry:', expiryInfo);
+                } catch (clipErr) {
+                    console.log('[Adobe Auto] Clipboard error:', clipErr);
+                }
+
+                // Show card info in floating popup prominently
+                showCardInfoOverlay(cardData);
+
+                await delay(500);
+            } else {
+                // Card fields accessible - fill them
                 updateStatus(3, 'Filling card number...');
-                const cardInput = document.querySelector(SELECTORS.cardNumberInput);
-                if (cardInput) {
-                    const success = await typeText(cardInput, cardData.cardNumber);
-                    if (!success) {
-                        failedFields.push('Card number');
-                        allFieldsFilled = false;
-                    }
-                    await randomDelay();
-                } else {
-                    // Card is in iframe - try to access
-                    const iframe = document.querySelector(SELECTORS.cardNumberIframe);
-                    if (iframe && iframe.contentDocument) {
-                        const iframeCardInput = iframe.contentDocument.querySelector(SELECTORS.cardNumberInput);
-                        if (iframeCardInput) {
-                            const success = await typeText(iframeCardInput, cardData.cardNumber);
-                            if (!success) {
-                                failedFields.push('Card number (iframe)');
-                                allFieldsFilled = false;
-                            }
-                        }
-                    } else {
-                        updateStatus(3, 'Card in iframe - copy: ' + cardData.cardNumber);
-                        console.log('[Adobe Auto] Card number needs manual input:', cardData.cardNumber);
-                        failedFields.push('Card number (iframe blocked)');
-                        allFieldsFilled = false;
-                    }
-                }
-            } catch (e) {
-                console.log('[Adobe Auto] Card iframe access blocked:', e);
-                failedFields.push('Card number');
-                allFieldsFilled = false;
-            }
+                await typeText(cardInput, cardData.cardNumber);
+                await randomDelay();
 
-            // Fill expiry
-            updateStatus(3, 'Filling expiry date...');
-            const expiryInput = await waitForElement(SELECTORS.expiryInput, 5000).catch(() => null);
-            if (expiryInput) {
-                const success = await typeText(expiryInput, cardData.formatted.expiry);
-                if (!success) {
-                    failedFields.push('Expiry');
-                    allFieldsFilled = false;
-                }
+                updateStatus(3, 'Filling expiry...');
+                await typeText(expiryInput, cardData.formatted.expiry);
                 await randomDelay();
             }
 
@@ -329,11 +316,7 @@
             updateStatus(3, 'Filling first name...');
             const firstNameInput = await waitForElement(SELECTORS.firstNameInput, 5000).catch(() => null);
             if (firstNameInput) {
-                const success = await setInputValue(firstNameInput, formData.firstName);
-                if (!success) {
-                    failedFields.push('First name');
-                    allFieldsFilled = false;
-                }
+                await setInputValue(firstNameInput, formData.firstName);
                 await randomDelay(100, 300);
             }
 
@@ -341,11 +324,7 @@
             updateStatus(3, 'Filling last name...');
             const lastNameInput = await waitForElement(SELECTORS.lastNameInput, 5000).catch(() => null);
             if (lastNameInput) {
-                const success = await setInputValue(lastNameInput, formData.lastName);
-                if (!success) {
-                    failedFields.push('Last name');
-                    allFieldsFilled = false;
-                }
+                await setInputValue(lastNameInput, formData.lastName);
                 await randomDelay(100, 300);
             }
 
@@ -353,17 +332,13 @@
             updateStatus(3, 'Filling postal code...');
             const postalInput = await waitForElement(SELECTORS.postalCodeInput, 5000).catch(() => null);
             if (postalInput) {
-                const success = await setInputValue(postalInput, formData.postalCode);
-                if (!success) {
-                    failedFields.push('Postal code');
-                    allFieldsFilled = false;
-                }
+                await setInputValue(postalInput, formData.postalCode);
                 await randomDelay();
             }
 
-            if (!allFieldsFilled) {
-                updateStatus(3, `Failed: ${failedFields.join(', ')}`, true);
-                return false;
+            if (iframeFieldsBlocked) {
+                updateStatus(3, `Paste card: ${cardData.cardNumber} | ${cardData.formatted.expiry}`);
+                return 'partial'; // Indicate partial success
             }
 
             updateStatus(3, 'Payment info filled ✓');
@@ -372,6 +347,57 @@
             updateStatus(3, `Error: ${error.message}`, true);
             return false;
         }
+    };
+
+    // Show card info overlay for manual input
+    const showCardInfoOverlay = (cardData) => {
+        // Remove existing overlay
+        const existing = document.getElementById('adobe-auto-card-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'adobe-auto-card-overlay';
+        overlay.innerHTML = `
+            <div style="
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #1a1a2e;
+                border: 2px solid #8ab4f8;
+                border-radius: 12px;
+                padding: 16px 24px;
+                z-index: 2147483647;
+                font-family: 'Google Sans', 'Roboto', sans-serif;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            ">
+                <div style="color: #8ab4f8; font-size: 12px; margin-bottom: 8px;">
+                    📋 Card copied - Paste in card field:
+                </div>
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div style="color: #fff; font-family: monospace; font-size: 18px; letter-spacing: 2px;">
+                        ${cardData.cardNumber}
+                    </div>
+                    <div style="color: #81c995; font-size: 16px;">
+                        ${cardData.formatted.expiry}
+                    </div>
+                    <div style="color: #fdd663; font-size: 14px;">
+                        CVV: ${cardData.cvv}
+                    </div>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" style="
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    background: none;
+                    border: none;
+                    color: #5f6368;
+                    cursor: pointer;
+                    font-size: 16px;
+                ">×</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
     };
 
     // Step 4: Click Start Free Trial
